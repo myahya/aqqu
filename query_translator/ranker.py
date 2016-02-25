@@ -236,27 +236,34 @@ class AccuModel(MLModel, Ranker):
         kf = KFold(len(train_queries), n_folds=n_folds, shuffle=True,
                    random_state=999)
         num_fold = 1
-        pair_features = []
-        pair_labels = []
-        features = []
-        labels = []
+        pair_features = [] # myahya: used for learn_ranking_model
+        pair_labels = []   # myahya: used for learn_ranking_model
+        features = []      # myahya: used for learn_prune_model
+        labels = []        # myahya: used for learn_prune_model
         for train, test in kf:
             logger.info("Training relation score model on fold %s/%s" % (
                 num_fold, n_folds))
             test_fold = [train_queries[i] for i in test]
             train_fold = [train_queries[i] for i in train]
+            # myahya: train of training fold
             rel_model = self.learn_rel_score_model(train_fold)
             self.feature_extractor.relation_score_model = rel_model
             logger.info("Applying relation score model.")
+            # myahya: extract PAIR features/labels for test fold
             testfoldpair_features, testfoldpair_labels = construct_pair_examples(
                 test_fold,
                 self.feature_extractor)
+            # myahya: extract UNI features/labels for test fold
             testfold_features, testfold_labels = construct_examples(
                 test_fold,
                 self.feature_extractor)
+            # myahya: add features from test fold (which features are these exactly?)
             features.extend(testfold_features)
+            # myahya: add test fold labels UNI
             labels.extend(testfold_labels)
+            # myahya: add pair features from fold
             pair_features.extend(testfoldpair_features)
+            # myahya: add test fold labels PAIR
             pair_labels.extend(testfoldpair_labels)
             num_fold += 1
             logger.info("Done collecting features for fold.")
@@ -992,14 +999,16 @@ def construct_pair_examples(queries, f_extractor):
     """
     logger.info("Extracting features from candidates.")
     labels = []
-    features = []
+    features = [] # myahya: a list of dictionries. each of the form feature->value
+                  # myahya: for each element in features, the corresponding element in labels says whether these features 
+                  #         apply to correct or incorrect candidates
     for query in queries:
-        oracle_position = query.oracle_position
+        oracle_position = query.oracle_position # myahya: but there might be many correct positions, no?
         # Only create pairs for which we "know" a correct solution
         # The oracle answer is the one with highest F1 but not necessarily
         # perfect.
         correct_cands = set()
-        candidates = [x.query_candidate for x in query.eval_candidates]
+        candidates = [x.query_candidate for x in query.eval_candidates] # myahya: these are candidate logical forms
         for i, candidate in enumerate(candidates):
             if i + 1 == oracle_position:
                 correct_cands.add(candidate)
@@ -1014,13 +1023,17 @@ def construct_pair_examples(queries, f_extractor):
             for candidate in sample_candidates:
                 for correct_cand in correct_cands:
                     if candidate in correct_cands:
-                        continue
+                        continue # myahya: skip correct candidates
+                    # myahya: features from correct cands. 
                     correct_cand_features = f_extractor.extract_features(correct_cand)
+                    # myahya: features from all candidates
                     candidate_features = f_extractor.extract_features(candidate)
+                    # myahya: features in correct but not in all
                     diff = feature_diff(correct_cand_features,
                                         candidate_features)
                     features.append(diff)
                     labels.append(1)
+                    # myahya: features in all correct but not in correct
                     diff = feature_diff(candidate_features,
                                         correct_cand_features)
                     features.append(diff)

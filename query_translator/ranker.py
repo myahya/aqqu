@@ -225,7 +225,7 @@ class AccuModel(MLModel, Ranker):
 
     def learn_model(self, train_queries, n_folds=6):
         # split the training queries into folds
-        # for each fold extract n-gram features (and select best ones)
+        # for each fold extract n-gram features (and select best ones) # myahya: where does this selection happen?
         # also extract regular features
         # learn the relation classifier and score the "test" fold
         # add the score as feature in the test-fold
@@ -240,6 +240,8 @@ class AccuModel(MLModel, Ranker):
         pair_labels = []   # myahya: used for learn_ranking_model
         features = []      # myahya: used for learn_prune_model
         labels = []        # myahya: used for learn_prune_model
+        # myahya: So a bunch of relation scoring models are created and applied, one for each split. 
+        
         for train, test in kf:
             logger.info("Training relation score model on fold %s/%s" % (
                 num_fold, n_folds))
@@ -247,7 +249,7 @@ class AccuModel(MLModel, Ranker):
             train_fold = [train_queries[i] for i in train]
             # myahya: train of training fold
             rel_model = self.learn_rel_score_model(train_fold)
-            self.feature_extractor.relation_score_model = rel_model
+            self.feature_extractor.relation_score_model = rel_model # myahya: feature extractor uses relation score as a feature
             logger.info("Applying relation score model.")
             # myahya: extract PAIR features/labels for test fold
             testfoldpair_features, testfoldpair_labels = construct_pair_examples(
